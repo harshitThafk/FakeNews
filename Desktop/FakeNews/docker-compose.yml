@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: fakenews-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=fakenews
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      retries: 5
+
+  ml_service:
+    build:
+      context: ./ml_service
+      dockerfile: Dockerfile
+    container_name: fakenews-ml
+    ports:
+      - "8000:8000"
+    environment:
+      - SERPAPI_KEY=${SERPAPI_KEY}
+      - NEWSAPI_KEY=${NEWSAPI_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ml_models:/app/models/saved
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      retries: 5
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fakenews-backend
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      ml_service:
+        condition: service_healthy
+    environment:
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongodb:27017/fakenews
+      - ML_SERVICE_URL=http://ml_service:8000
+      - FRONTEND_URL=http://localhost:3000
+      - SERPAPI_KEY=${SERPAPI_KEY}
+      - NEWSAPI_KEY=${NEWSAPI_KEY}
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://localhost:5000/api
+    container_name: fakenews-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
+  ml_models:
