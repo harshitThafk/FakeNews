@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: fakenews-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    region: oregon
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        fromDatabase:
+          name: fakenews-db
+          property: connectionString
+      - key: ML_SERVICE_URL
+        value: https://fakenews-ml.onrender.com
+      - key: FRONTEND_URL
+        value: https://your-frontend-url.netlify.app
+      - key: SERPAPI_KEY
+        sync: false
+      - key: NEWSAPI_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+
+databases:
+  - name: fakenews-db
+    databaseName: fakenews
+    user: fakenews_user
+
+  - type: web
+    name: fakenews-ml
+    runtime: docker
+    dockerfilePath: ./ml_service/Dockerfile
+    region: oregon
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SERPAPI_KEY
+        sync: false
+      - key: NEWSAPI_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
